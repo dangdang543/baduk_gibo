@@ -3,114 +3,45 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>바둑 플레이어 + 자유 복기 (반응형)</title>
+    <title>바둑 플레이어</title>
     <style>
-        /* 기본 배경 및 레이아웃 */
         body { 
-            background: #1a1a1a; 
-            color: white; 
-            margin: 0; 
-            font-family: sans-serif; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            overflow: hidden; /* 스크롤 방지 */
+            background: #1a1a1a; color: white; margin: 0; font-family: sans-serif; 
+            display: flex; align-items: center; justify-content: center; 
+            min-height: 100vh; overflow: hidden; 
         }
-
-        /* 메인 컨테이너: 가로/세로 모드 대응 */
         #main-container {
-            display: flex;
-            flex-direction: column; /* 세로가 기본 */
-            align-items: center;
-            gap: 15px;
-            padding: 10px;
-            width: 100%;
-            max-width: 1200px;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 10px; padding: 5px; width: 100%;
         }
-
-        /* 바둑판 박스 */
         #game-box { 
-            position: relative; 
-            width: 90vmin; /* 화면의 짧은 쪽 기준 */
-            height: 90vmin; 
-            background: #e3a857; 
-            border: 2px solid #5d4037; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-            cursor: pointer; 
+            position: relative; width: 92vmin; height: 92vmin; 
+            background: #e3a857; border: 2px solid #5d4037; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5); 
         }
-
         svg { width: 100%; height: 100%; touch-action: none; }
-
-        /* 정보창 및 버튼 컨테이너 */
-        #side-panel {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .controls { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            gap: 8px; 
-        }
-
+        #side-panel { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+        
         button { 
-            padding: 12px 15px; 
-            border: none; 
-            border-radius: 5px; 
-            background: #444; 
-            color: white; 
-            cursor: pointer; 
-            font-size: 14px; 
-            font-weight: bold; 
-            white-space: nowrap;
+            padding: 10px 14px; border: none; border-radius: 5px; 
+            background: #444; color: white; cursor: pointer; 
+            font-size: 14px; font-weight: bold; 
         }
-
+        /* 전체화면 버튼 스타일 */
+        #full-btn { background: #2e7d32 !important; grid-column: span 2; }
         #reset-btn { background: #a44 !important; }
-        #info { 
-            font-size: 1.1em; 
-            font-weight: bold; 
-            background: rgba(0,0,0,0.3); 
-            padding: 8px 15px; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            text-align: center;
-        }
+        #info { font-size: 1em; background: rgba(0,0,0,0.4); padding: 5px 15px; border-radius: 15px; }
 
-        #error-msg { color: #ff5555; font-weight: bold; position: absolute; top: 10px; }
-
-        /* 가로 화면(Landscape) 모바일 전용 스타일 */
-        @media (orientation: landscape) and (max-height: 600px) {
-            #main-container {
-                flex-direction: row; /* 좌측 판, 우측 버튼 */
-                justify-content: space-evenly;
-                height: 95vh;
-            }
-
-            #game-box {
-                width: 85vh; /* 높이에 맞춰 판 크기 조절 */
-                height: 85vh;
-            }
-
-            #side-panel {
-                height: 85vh;
-                justify-content: center;
-            }
-
-            .controls {
-                grid-template-columns: 1fr; /* 버튼을 한 줄로 세로 배치 */
-            }
-
-            button {
-                padding: 10px 20px;
-            }
+        @media (orientation: landscape) {
+            #main-container { flex-direction: row; justify-content: center; gap: 20px; }
+            #game-box { width: 95vh; height: 95vh; }
+            .controls { grid-template-columns: 1fr; }
+            #full-btn { grid-column: auto; }
         }
     </style>
 </head>
 <body>
-    <div id="error-msg"></div>
 
     <div id="main-container">
         <div id="game-box">
@@ -123,43 +54,51 @@
         </div>
 
         <div id="side-panel">
-            <div id="info" onclick="jumpToMove()" title="클릭하여 원하는 수순으로 이동">
+            <div id="info" onclick="jumpToMove()">
                 수순: <span id="step-num">0</span> / <span id="total-num">0</span>
             </div>
-            
             <div class="controls">
-                <button onclick="prev()">이전 (←)</button>
+                <button id="full-btn" onclick="toggleFullScreen()">전체 화면 모드</button>
+                <button onclick="prev()">이전</button>
                 <button id="play-btn" onclick="togglePlay()">정지</button>
-                <button onclick="next()">다음 (→)</button>
+                <button onclick="next()">다음</button>
                 <button id="reset-btn" onclick="resetToKibo()">기보 복원</button>
             </div>
         </div>
     </div>
 
     <script>
-        // [기존의 모든 JavaScript 로직 (pdfTable, parseSGF, checkCapture 등) 유지]
+        // --- 전체 화면 기능 ---
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`전체 화면 모드를 실행할 수 없습니다: ${err.message}`);
+                });
+                document.getElementById('full-btn').innerText = "전체 화면 종료";
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    document.getElementById('full-btn').innerText = "전체 화면 모드";
+                }
+            }
+        }
+
+        // --- 기존 바둑 로직 시작 ---
         const pdfTable = [[211,221,231,241,251,261,271,281,291,101,191,181,171,161,151,141,131,121,111],[212,222,232,242,252,262,272,282,292,102,192,182,172,162,152,142,132,122,112],[213,223,233,243,253,263,273,283,293,103,193,183,173,163,153,143,133,123,113],[214,224,234,244,254,264,274,284,294,104,194,184,174,164,154,144,134,124,114],[215,225,235,245,255,265,275,285,295,105,195,185,175,165,155,145,135,125,115],[216,226,236,246,256,266,276,286,296,106,196,186,176,166,156,146,136,126,116],[217,227,237,247,257,267,277,287,297,107,197,187,177,167,157,147,137,127,117],[218,228,238,248,258,268,278,288,298,108,198,188,178,168,158,148,138,128,118],[219,229,239,249,259,269,279,289,299,109,199,189,179,169,159,149,139,129,119],[310,320,330,340,350,360,370,380,390,100,190,180,170,160,150,140,130,120,110],[319,329,339,349,359,369,379,389,399,309,499,489,479,469,459,449,439,429,419],[318,328,338,348,358,368,378,388,398,308,498,488,478,468,458,448,438,428,418],[317,327,337,347,357,367,377,387,397,307,497,487,477,467,457,447,437,427,417],[316,326,336,346,356,366,376,386,396,306,496,486,476,466,456,446,436,426,416],[315,325,335,345,355,365,375,385,395,305,495,485,475,465,455,445,435,425,415],[314,324,334,344,354,364,374,384,394,304,494,484,474,464,454,444,434,424,414],[313,323,333,343,353,363,373,383,393,303,493,483,473,463,453,443,433,423,413],[312,322,332,342,352,362,372,382,392,302,492,482,472,462,452,442,432,422,412],[311,321,331,341,351,361,371,381,391,301,491,481,471,461,451,441,431,421,411]];
         const numToPos = {}; pdfTable.forEach((row, r) => row.forEach((val, c) => numToPos[val] = {r, c}));
-        
-        let history = [[]]; 
-        let currentIdx = 0;
-        let isPlaying = true;
-        let interval;
-        let exploreBoard = null;
-        let lastExploreColor = 'W';
+        let history = [[]], currentIdx = 0, isPlaying = true, interval, exploreBoard = null, lastExploreColor = 'W';
 
         const urlParams = new URLSearchParams(window.location.search);
         const dataFile = urlParams.get('file');
 
         async function loadFile() {
-            if(!dataFile) { document.getElementById('error-msg').innerText = "파일을 지정해주세요 (?file=파일명)"; return; }
+            if(!dataFile) return;
             try {
                 const resp = await fetch(dataFile);
-                if(!resp.ok) throw new Error("파일을 찾을 수 없음");
                 const text = await resp.text();
                 if (text.includes(';W[') || text.includes(';B[')) parseSGF(text);
                 else parseTextCoords(text);
-            } catch (e) { document.getElementById('error-msg').innerText = e.message; }
+            } catch (e) { console.error(e); }
         }
 
         function parseTextCoords(text) {
@@ -249,14 +188,14 @@
         }
 
         function jumpToMove() {
-            if (isPlaying) { alert("정지 버튼을 누른 후에 수순을 이동할 수 있습니다."); return; }
+            if (isPlaying) return;
             const total = history.length - 1;
-            const input = prompt(`이동할 수순 번호를 입력하세요 (0 ~ ${total}):`, currentIdx);
+            const input = prompt(`이동할 수순 번호 (0 ~ ${total}):`, currentIdx);
             if (input !== null) {
                 const target = parseInt(input);
                 if (!isNaN(target) && target >= 0 && target <= total) {
                     resetToKibo(); currentIdx = target; render();
-                } else { alert(`0에서 ${total} 사이의 올바른 숫자를 입력해주세요.`); }
+                }
             }
         }
 
