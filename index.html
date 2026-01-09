@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>바둑 통합 플레이어 + 자유 복기 (안정화 버전)</title>
+    <style>
+        body { background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: sans-serif; }
+        #game-box { position: relative; width: 600px; height: 600px; background: #e3a857; border: 2px solid #5d4037; box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: pointer; }
+        svg { width: 100%; height: 100%; touch-action: none; }
+        .controls { margin-top: 20px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 10px 18px; border: none; border-radius: 5px; background: #444; color: white; cursor: pointer; font-size: 14px; font-weight: bold; }
+        #reset-btn { background:#844 !important; }
+        #info { margin-top: 15px; font-size: 1.2em; font-weight: bold; background: rgba(0,0,0,0.3); padding: 5px 20px; border-radius: 20px; }
+        #error-msg { color: #ff5555; margin-bottom: 10px; font-size: 0.9em; }
+        @media (max-width: 620px) { #game-box { width: 95vw; height: 95vw; } }
+    </style>
+</head>
+<body>
+    <div id="error-msg"></div>
+    <div id="game-box">
+        <svg id="baduk-svg" viewBox="0 0 600 600">
+            <rect width="600" height="600" fill="#e3a857"/>
+            <g id="grid-lines"></g>
+            <g id="star-points"></g>
+            <g id="stones-layer"></g>
+        </svg>
+    </div>
+    <div id="info">수순: <span id="step-num">0</span> / <span id="total-num">0</span></div>
+    <div class="controls">
+        <button onclick="prev()">이전 (←)</button>
+        <button id="play-btn" onclick="togglePlay()">정지</button>
+        <button onclick="next()">다음 (→)</button>
+        <button id="reset-btn" onclick="resetToKibo()">기보 복원</button>
+    </div>
+
+    <script>
+        const pdfTable = [[211,221,231,241,251,261,271,281,291,101,191,181,171,161,151,141,131,121,111],[212,222,232,242,252,262,272,282,292,102,192,182,172,162,152,142,132,122,112],[213,223,233,243,253,263,273,283,293,103,193,183,173,163,153,143,133,123,113],[214,224,234,244,254,264,274,284,294,104,194,184,174,164,154,144,134,124,114],[215,225,235,245,255,265,275,285,295,105,195,185,175,165,155,145,135,125,115],[216,226,236,246,256,266,276,286,296,106,196,186,176,166,156,146,136,126,116],[217,227,237,247,257,267,277,287,297,107,197,187,177,167,157,147,137,127,117],[218,228,238,248,258,268,278,288,298,108,198,188,178,168,158,148,138,128,118],[219,229,239,249,259,269,279,289,299,109,199,189,179,169,159,149,139,129,119],[310,320,330,340,350,360,370,380,390,100,190,180,170,160,150,140,130,120,110],[319,329,339,349,359,369,379,389,399,309,499,489,479,469,459,449,439,429,419],[318,328,338,348,358,368,378,388,398,308,498,488,478,468,458,448,438,428,418],[317,327,337,347,357,367,377,387,397,307,497,487,477,467,457,447,437,427,417],[316,326,336,346,356,366,376,386,396,306,496,486,476,466,456,446,436,426,416],[315,325,335,345,355,365,375,385,395,305,495,485,475,465,455,445,435,425,415],[314,324,334,344,354,364,374,384,394,304,494,484,474,464,454,444,434,424,414],[313,323,333,343,353,363,373,383,393,303,493,483,473,463,453,443,433,423,413],[312,322,332,342,352,362,372,382,392,302,492,482,472,462,452,442,432,422,412],[311,321,331,341,351,361,371,381,391,301,491,481,471,461,451,441,431,421,411]];
+        const numToPos = {}; pdfTable.forEach((row, r) => row.forEach((val, c) => numToPos[val] = {r, c}));
+        
+        let history = [[]]; 
+        let currentIdx = 0;
+        let isPlaying = true;
+        let interval;
+        let exploreBoard = null;
+        let lastExploreColor = 'W';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const dataFile = urlParams.get('file');
+
+        async function loadFile() {
+            if(!dataFile) { document.getElementById('error-msg').innerText = "파일명이 지정되지 않았습니다. (?file=파일명.sgf)"; return; }
+            try {
+                const response = await fetch(dataFile);
+                if(!response.ok) throw new Error("파일을 찾을 수 없습니다: " + dataFile);
+                const text = await response.text();
+                // SGF인지 텍스트인지 판별
+                if (text.includes(';W[') || text.includes(';B[')) parseSGF(text);
+                else parseTextCoords(text);
+            } catch (e) { document.getElementById('error-msg').innerText = e.message; }
+        }
+
+        function parseTextCoords(text) {
+            const matches = text.match(/\d{3}/g);
+            if(!matches) return;
+            const moves = matches.map(m => {
+                let n = parseInt(m);
+                if([200,300,400].includes(n)) n = 100;
+                else if(n>=201 && n<=209) n -= 100;
+                else if(n>=401 && n<=409) n -= 100;
+                else if(n>=210 && n<300 && n%10===0) n += 100;
+                else if(n>=410 && n<500 && n%10===0) n -= 300;
+                return numToPos[n] ? {r: numToPos[n].r, c: numToPos[n].c} : null;
+            }).filter(m => m);
+            buildHistory(moves);
+        }
+
+        function parseSGF(sgf) {
+            const moveRegex = /([BW])\[([a-s]{2})\]/g;
+            let moves = [], match;
+            while ((match = moveRegex.exec(sgf))) {
+                moves.push({ c: match[2].charCodeAt(0)-97, r: match[2].charCodeAt(1)-97 });
+            }
+            buildHistory(moves);
+        }
+
+        function buildHistory(moves) {
+            let board = Array.from({length:19}, () => Array(19).fill(null));
+            moves.forEach((m, i) => {
+                const color = (i%2===0)?'B':'W';
+                board[m.r][m.c] = color;
+                checkCapture(m.r, m.c, color, board);
+                let snap = [];
+                for(let r=0; r<19; r++) for(let c=0; c<19; c++) if(board[r][c]) snap.push({r,c,color:board[r][c]});
+                history.push(snap);
+            });
+            document.getElementById('total-num').innerText = history.length-1;
+            render();
+        }
+
+        function checkCapture(r, c, color, b) {
+            const opp = color === 'B' ? 'W' : 'B';
+            [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].forEach(([nr,nc]) => {
+                if(nr>=0 && nr<19 && nc>=0 && nc<19 && b[nr][nc] === opp) {
+                    const g = getGroup(nr, nc, b);
+                    if(g.libs === 0) g.group.forEach(([gr,gc]) => b[gr][gc] = null);
+                }
+            });
+            const self = getGroup(r, c, b);
+            if(self.libs === 0) self.group.forEach(([gr,gc]) => b[gr][gc] = null);
+        }
+
+        function getGroup(r, c, b) {
+            const color = b[r][c];
+            const visited = new Set([`${r},${c}`]);
+            const stack = [[r,c]], group = [[r,c]], libs = new Set();
+            while(stack.length > 0) {
+                const [currR, currC] = stack.pop();
+                [[currR-1,currC],[currR+1,currC],[currR,currC-1],[currR,currC+1]].forEach(([nr,nc]) => {
+                    if(nr>=0 && nr<19 && nc>=0 && nc<19) {
+                        if(!b[nr][nc]) libs.add(`${nr},${nc}`);
+                        else if(b[nr][nc] === color && !visited.has(`${nr},${nc}`)) {
+                            visited.add(`${nr},${nc}`); stack.push([nr,nc]); group.push([nr,nc]);
+                        }
+                    }
+                });
+            }
+            return {libs: libs.size, group};
+        }
+
+        function render() {
+            const stones = exploreBoard ? boardToStones(exploreBoard) : (history[currentIdx] || []);
+            let html = '';
+            stones.forEach(s => {
+                const cx = 30 + s.c*30, cy = 30 + s.r*30;
+                if(s.color==='B') html += `<circle cx="${cx}" cy="${cy}" r="14" fill="#111"/><circle cx="${cx-3}" cy="${cy-3}" r="4" fill="#555" opacity="0.4"/>`;
+                else html += `<circle cx="${cx}" cy="${cy}" r="14" fill="#fff" stroke="#ccc"/><circle cx="${cx-3}" cy="${cy-3}" r="4" fill="#eee" opacity="0.8"/>`;
+            });
+            document.getElementById('stones-layer').innerHTML = html;
+            document.getElementById('step-num').innerText = currentIdx + (exploreBoard ? " (복기중)" : "");
+        }
+
+        function boardToStones(b) {
+            let s = [];
+            for(let r=0; r<19; r++) for(let c=0; c<19; c++) if(b[r][c]) s.push({r,c,color:b[r][c]});
+            return s;
+        }
+
+        document.getElementById('game-box').addEventListener('click', function(e) {
+            pause();
+            const rect = this.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (600/rect.width);
+            const y = (e.clientY - rect.top) * (600/rect.height);
+            const c = Math.round((x - 30) / 30);
+            const r = Math.round((y - 30) / 30);
+            if(r>=0 && r<19 && c>=0 && c<19) {
+                if(!exploreBoard) {
+                    exploreBoard = Array.from({length:19}, () => Array(19).fill(null));
+                    (history[currentIdx] || []).forEach(s => exploreBoard[s.r][s.c] = s.color);
+                    lastExploreColor = (currentIdx % 2 === 0) ? 'W' : 'B';
+                }
+                if(!exploreBoard[r][c]) {
+                    const nextCol = lastExploreColor === 'W' ? 'B' : 'W';
+                    exploreBoard[r][c] = nextCol;
+                    checkCapture(r, c, nextCol, exploreBoard);
+                    lastExploreColor = nextCol;
+                    render();
+                }
+            }
+        });
+
+        function resetToKibo() { exploreBoard = null; render(); }
+        function next() { pause(); resetToKibo(); currentIdx = Math.min(currentIdx+1, history.length-1); render(); }
+        function prev() { pause(); resetToKibo(); currentIdx = Math.max(currentIdx-1, 0); render(); }
+        function pause() { clearInterval(interval); isPlaying=false; document.getElementById('play-btn').innerText='재생'; }
+        function togglePlay() {
+            if(isPlaying) pause();
+            else {
+                resetToKibo();
+                isPlaying = true; document.getElementById('play-btn').innerText='정지';
+                interval = setInterval(() => { if(currentIdx < history.length-1){currentIdx++; render();} else pause(); }, 800);
+            }
+        }
+
+        // 그리드 초기화
+        const grid = document.getElementById('grid-lines');
+        for(let i=0; i<19; i++) {
+            let p = 30+i*30;
+            grid.innerHTML += `<line x1="${p}" y1="30" x2="${p}" y2="570" stroke="#333"/><line x1="30" y1="${p}" x2="570" y2="${p}" stroke="#333"/>`;
+        }
+        [3,9,15].forEach(r=>[3,9,15].forEach(c=>document.getElementById('star-points').innerHTML+=`<circle cx="${30+c*30}" cy="${30+r*30}" r="4" fill="#333"/>`));
+
+        loadFile();
+        interval = setInterval(() => { if(currentIdx < history.length-1) { currentIdx++; render(); } else pause(); }, 800);
+    </script>
+</body>
+</html>
