@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>바둑 복기 보드</title>
+    <style>
+        body { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            background-color: #e0e0e0; 
+            font-family: 'Malgun Gothic', sans-serif; 
+            padding-top: 20px;
+        }
+        canvas { 
+            background-color: #f2b06d; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); 
+            cursor: crosshair;
+            border-radius: 4px;
+        }
+        .controls { margin-top: 20px; display: flex; gap: 10px; }
+        button { 
+            padding: 10px 25px; 
+            font-size: 15px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 5px;
+            background-color: #333;
+            color: white;
+            transition: 0.2s;
+        }
+        button:hover { background-color: #555; }
+        .info-panel {
+            margin-bottom: 15px;
+            padding: 10px 20px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #status { font-weight: bold; color: #333; }
+        .highlight { color: #e74c3c !important; }
+    </style>
+</head>
+<body>
+
+    <div class="info-panel">
+        상태: <span id="status">기본 수순 모드</span>
+    </div>
+
+    <canvas id="board" width="600" height="600"></canvas>
+    
+    <div class="controls">
+        <button onclick="prevMove()">이전 수</button>
+        <button onclick="nextMove()">다음 수</button>
+        <button onclick="resetBoard()">초기화</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status');
+        
+        const size = 19;
+        const padding = 30;
+        const cellSize = (canvas.width - padding * 2) / (size - 1);
+        
+        let history = []; // {x, y, color} 객체 배열
+        let currentIndex = -1; 
+        let isReviewMode = false; 
+        let reviewStartIndex = -1;
+
+        // 바둑판 그리기 (격자 + 화점)
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 1. 격자 그리기
+            ctx.beginPath();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < size; i++) {
+                // 가로선
+                ctx.moveTo(padding, padding + i * cellSize);
+                ctx.lineTo(canvas.width - padding, padding + i * cellSize);
+                // 세로선
+                ctx.moveTo(padding + i * cellSize, padding);
+                ctx.lineTo(padding + i * cellSize, canvas.height - padding);
+            }
+            ctx.stroke();
+
+            // 2. 화점(Star points) 그리기 - 색상을 항상 검은색으로 고정
+            const dots = [3, 9, 15];
+            ctx.fillStyle = '#000'; // 명시적 검은색 설정
+            dots.forEach(x => {
+                dots.forEach(y => {
+                    ctx.beginPath();
+                    ctx.arc(padding + x * cellSize, padding + y * cellSize, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+
+            renderStones();
+        }
+
+        // 돌 및 복기 번호 렌더링
+        function renderStones() {
+            for (let i = 0; i <= currentIndex; i++) {
+                const move = history[i];
+                const x = padding + move.x * cellSize;
+                const y = padding + move.y * cellSize;
+
+                // 돌 그림자 효과 (선택사항)
+                ctx.beginPath();
+                ctx.arc(x + 1, y + 1, cellSize * 0.45, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fill();
+
+                // 실제 돌
+                ctx.beginPath();
+                ctx.arc(x, y, cellSize * 0.45, 0, Math.PI * 2);
+                ctx.fillStyle = move.color === 'B' ? '#000' : '#fff';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // 복기 모드일 때 번호 표시
+                if (isReviewMode && i >= reviewStartIndex) {
+                    const stepNumber = i - reviewStartIndex + 1;
+                    ctx.fillStyle = move.color === 'B' ? '#fff' : '#000'; // 돌 색상과 대비
+                    ctx.font = `bold ${cellSize * 0.5}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(stepNumber, x, y);
+                }
+            }
+        }
+
+        // 클릭 시 착수 처리
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const ix = Math.round((mouseX - padding) / cellSize);
+            const iy = Math.round((mouseY - padding) / cellSize);
+
+            // 범위 확인 및 중복 착수 방지
+            if (ix >= 0 && ix < size && iy >= 0 && iy < size) {
+                const exists = history.slice(0, currentIndex + 1).some(m => m.x === ix && m.y === iy);
+                if (!exists) {
+                    placeStone(ix, iy);
+                }
+            }
+        });
+
+        function placeStone(x, y) {
+            // 현재 수순에서 벗어나면 복기 모드 시작
+            if (!isReviewMode) {
+                isReviewMode = true;
+                reviewStartIndex = currentIndex + 1;
+                statusEl.innerText = "복기 모드 (번호 표시 중)";
+                statusEl.classList.add('highlight');
+                // 새로운 변화도를 위해 이후 수순 삭제
+                history = history.slice(0, currentIndex + 1);
+            }
+
+            const color = (currentIndex + 1) % 2 === 0 ? 'B' : 'W';
+            history.push({ x, y, color });
+            currentIndex++;
+            drawBoard();
+        }
+
+        function prevMove() {
+            if (currentIndex >= 0) {
+                currentIndex--;
+                // 복기 시작점 이전으로 돌아가면 모드 해제
+                if (isReviewMode && currentIndex < reviewStartIndex - 1) {
+                    isReviewMode = false;
+                    statusEl.innerText = "기본 수순 모드";
+                    statusEl.classList.remove('highlight');
+                }
+                drawBoard();
+            }
+        }
+
+        function nextMove() {
+            if (currentIndex < history.length - 1) {
+                currentIndex++;
+                drawBoard();
+            }
+        }
+
+        function resetBoard() {
+            if(confirm("모든 수순을 초기화하시겠습니까?")) {
+                history = [];
+                currentIndex = -1;
+                isReviewMode = false;
+                statusEl.innerText = "기본 수순 모드";
+                statusEl.classList.remove('highlight');
+                drawBoard();
+            }
+        }
+
+        // 초기 바둑판 생성
+        drawBoard();
+    </script>
+</body>
+</html>
