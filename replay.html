@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>바둑 기보 복기 - 번호 표시</title>
+    <script type="text/javascript" src="https://dangdang543.github.io/baduk_gibo/wgo/wgo.min.js"></script>
+    <script type="text/javascript" src="https://dangdang543.github.io/baduk_gibo/wgo/wgo.player.min.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://dangdang543.github.io/baduk_gibo/wgo/wgo.player.css" />
+    <style>
+        body { background-color: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding-top: 20px; }
+        #player-container { width: 600px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .mode-info { margin-bottom: 10px; font-weight: bold; padding: 5px 15px; border-radius: 15px; background: #fff; }
+        .review-mode { color: #e74c3c; border: 1px solid #e74c3c; }
+    </style>
+</head>
+<body>
+
+    <div id="mode-display" class="mode-info">기본 수순 모드</div>
+    <div id="player-container"></div>
+
+    <script>
+        // URL에서 파일명 가져오기
+        const urlParams = new URLSearchParams(window.location.search);
+        const sgfFile = urlParams.get('file') || 'heaven.sgf';
+
+        let reviewCounter = 1;
+        let isReviewMode = false;
+
+        // WGo Player 설정
+        const player = new WGo.BasicPlayer(document.getElementById("player-container"), {
+            sgfFile: sgfFile,
+            move: 0,
+            board: {
+                background: "https://dangdang543.github.io/baduk_gibo/wgo/textures/wood_1.jpg"
+            }
+        });
+
+        // 사용자가 보드를 클릭했을 때 실행되는 훅
+        player.board.addEventListener("click", function(x, y) {
+            // 현재 플레이어의 기보 리더
+            const kifuReader = player.kifuReader;
+            
+            // 만약 현재 수순에서 다음 수가 기보에 없는 수라면 (복기 시작)
+            if (!kifuReader.game.isValid(x, y)) return;
+
+            // 복기 모드 감지 (기존 경로를 벗어나는 착수 시)
+            if (!isReviewMode) {
+                const nextMove = kifuReader.node.children.find(child => child.move && child.move.x === x && child.move.y === y);
+                if (!nextMove) {
+                    isReviewMode = true;
+                    reviewCounter = 1;
+                    document.getElementById("mode-display").innerText = "복기 모드: 번호 표시 중";
+                    document.getElementById("mode-display").classList.add("review-mode");
+                }
+            }
+
+            // 돌을 놓는 동작
+            player.update(); 
+            
+            // 복기 모드라면 번호 마커 추가
+            if (isReviewMode) {
+                player.board.addObject({
+                    x: x,
+                    y: y,
+                    type: "LB", // Label 타입
+                    text: reviewCounter.toString()
+                });
+                reviewCounter++;
+            }
+        });
+
+        // 수순을 이동할 때(이전/다음 버튼) 복기 모드 해제 로직
+        player.addEventListener("update", function(e) {
+            // 사용자가 다시 기본 수순으로 돌아오거나 초기화하면 카운터 리셋
+            if (e.op === "init" || (isReviewMode && player.kifuReader.node.children.length > 0)) {
+                // 특정 조건에서 복기 모드 자동 해제를 원하시면 여기에 추가
+            }
+        });
+
+    </script>
+</body>
+</html>
