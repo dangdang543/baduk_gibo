@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGF 웹 플레이어 (사석 제거 지원)</title>
+    <style>
+        body { background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: sans-serif; }
+        #game-box { position: relative; width: 600px; height: 600px; background: #e3a857; border: 2px solid #5d4037; box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: pointer; }
+        svg { width: 100%; height: 100%; }
+        .controls { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 12px 24px; border: none; border-radius: 5px; background: #444; color: white; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:active { background: #222; }
+        #info { margin-top: 15px; font-size: 1.4em; font-weight: bold; background: rgba(0,0,0,0.3); padding: 5px 20px; border-radius: 20px; }
+        @media (max-width: 620px) { #game-box { width: 95vw; height: 95vw; } }
+    </style>
+</head>
+<body>
+    <div id="game-box" onclick="togglePlay()">
+        <svg id="baduk-svg" viewBox="0 0 600 600">
+            <rect width="600" height="600" fill="#e3a857"/>
+            <g id="grid-lines"></g>
+            <g id="star-points"></g>
+            <g id="stones-layer"></g>
+        </svg>
+    </div>
+    <div id="info">수순: <span id="step-num">0</span> / <span id="total-num">0</span></div>
+    <div class="controls">
+        <button onclick="prev()">이전 (←)</button>
+        <button id="play-btn" onclick="togglePlay()">정지</button>
+        <button onclick="next()">다음 (→)</button>
+    </div>
+
+    <script>
+        let history = [[]]; 
+        let currentIdx = 0;
+        let isPlaying = true;
+        let interval;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const sgfFile = urlParams.get('file') || 'forever.sgf';
+
+        async function loadSGF() {
+            try {
+                const response = await fetch(sgfFile);
+                if(!response.ok) throw new Error();
+                const text = await response.text();
+                parseSGF(text);
+            } catch (e) { 
+                alert("SGF 파일을 찾을 수 없습니다. 주소를 확인해주세요."); 
+            }
+        }
+
+        // --- 사석 처리 엔진 (기존 파이썬 로직의 자바스크립트 버전) ---
+        function getLiberties(r, c, board) {
+            const color = board[r][c];
+            const visited = new Set([`${r},${c}`]);
+            const stack = [[r, c]];
+            const group = [[r, c]];
+            const liberties = new Set();
+
+            while (stack.length > 0) {
+                const [currR, currC] = stack.pop();
+                const neighbors = [[currR-1, currC], [currR+1, currC], [currR, currC-1], [currR, currC+1]];
+                for (const [nr, nc] of neighbors) {
+                    if (nr >= 0 && nr < 19 && nc >= 0 && nc < 19) {
+                        if (!board[nr][nc]) {
+                            liberties.add(`${nr},${nc}`);
+                        } else if (board[nr][nc] === color && !visited.has(`${nr},${nc}`)) {
+                            visited.add(`${nr},${nc}`);
+                            stack.push([nr, nc]);
+                            group.push([nr, nc]);
+                        }
+                    }
+                }
+            }
+            return { liberties: liberties.size, group };
+        }
+
+        function parseSGF(sgf) {
+            const moveRegex = /([BW])\[([a-s]{2})\]/g;
+            let board = Array.from({length: 19}, () => Array(19).fill(null));
+            let match;
+            
+            while ((match = moveRegex.exec(sgf))) {
+                const color = match[1];
+                const c = match[2].charCodeAt(0) - 97;
+                const r = match[2].charCodeAt(1) - 97;
+                
+                board[r][c] = color;
+                const oppColor = color === 'B' ? 'W' : 'B';
+                
+                // 상대방 돌 따내기 검사
+                [[r-1, c], [r+1, c], [r, c-1], [r, c+1]].forEach(([nr, nc]) => {
+                    if (nr >= 0 && nr < 19 && nc >= 0 && nc < 19 && board[nr][nc] === oppColor) {
+                        const { liberties, group } = getLiberties(nr, nc, board);
+                        if (liberties === 0) group.forEach(([gr, gc]) => board[gr][gc] = null);
+                    }
+                });
+
+                // 자충수 검사
+                const { liberties, group } = getLiberties(r, c, board);
+                if (liberties === 0) group.forEach(([gr, gc]) => board[gr][gc] = null);
+
+                // 현재 상태 저장
+                let snapshot = [];
+                for(let i=0; i<19; i++) for(let j=0; j<19; j++) 
+                    if(board[i][j]) snapshot.push({r: i, c: j, color: board[i][j]});
+                history.push(snapshot);
+            }
+            document.getElementById('total-num').innerText = history.length - 1;
+            render();
+        }
+
+        function render() {
+            const stones = history[currentIdx] || [];
+            let html = '';
+            stones.forEach(s => {
+                const cx = 30 + s.c * 30;
+                const cy = 30 + s.r * 30;
+                if(s.color === 'B') {
+                    html += `<circle cx="${cx}" cy="${cy}" r="14" fill="#111"/><circle cx="${cx-3}" cy="${cy-3}" r="4" fill="#555" opacity="0.4"/>`;
+                } else {
+                    html += `<circle cx="${cx}" cy="${cy}" r="14" fill="#fff" stroke="#ccc"/><circle cx="${cx-3}" cy="${cy-3}" r="4" fill="#eee" opacity="0.8"/>`;
+                }
+            });
+            document.getElementById('stones-layer').innerHTML = html;
+            document.getElementById('step-num').innerText = currentIdx;
+        }
+
+        // 그리드 생성
+        const grid = document.getElementById('grid-lines');
+        for(let i=0; i<19; i++) {
+            let p = 30 + i * 30;
+            grid.innerHTML += `<line x1="${p}" y1="30" x2="${p}" y2="570" stroke="#333" stroke-width="1"/>`;
+            grid.innerHTML += `<line x1="30" y1="${p}" x2="570" y2="${p}" stroke="#333" stroke-width="1"/>`;
+        }
+        [3, 9, 15].forEach(r => [3, 9, 15].forEach(c => {
+            document.getElementById('star-points').innerHTML += `<circle cx="${30+c*30}" cy="${30+r*30}" r="4" fill="#333"/>`;
+        }));
+
+        function next() { pause(); currentIdx = Math.min(currentIdx + 1, history.length - 1); render(); }
+        function prev() { pause(); currentIdx = Math.max(currentIdx - 1, 0); render(); }
+        function pause() { clearInterval(interval); isPlaying = false; document.getElementById('play-btn').innerText = '재생'; }
+        function togglePlay() {
+            if(isPlaying) pause();
+            else {
+                isPlaying = true; document.getElementById('play-btn').innerText = '정지';
+                interval = setInterval(() => { if(currentIdx < history.length-1) { currentIdx++; render(); } else pause(); }, 800);
+            }
+        }
+        document.addEventListener('keydown', e => {
+            if(e.key === 'ArrowLeft') prev();
+            if(e.key === 'ArrowRight') next();
+            if(e.code === 'Space') togglePlay();
+        });
+        loadSGF();
+        interval = setInterval(() => { if(currentIdx < history.length-1) { currentIdx++; render(); } else pause(); }, 800);
+    </script>
+</body>
+</html>
