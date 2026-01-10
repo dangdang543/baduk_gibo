@@ -16,7 +16,6 @@
             width: 100%; box-sizing: border-box; padding: 10px;
         }
 
-        /* 바둑판: 세로 모드에서 상단에 위치 */
         #game-box { 
             position: relative; width: 95vmin; height: 95vmin; 
             background: #e3a857; border: 2px solid #5d4037; 
@@ -31,7 +30,6 @@
             width: 100%; margin-top: 15px; gap: 10px;
         }
         
-        /* [세로 모드] 수순 표시창: 화면 폭을 꽉 채우고 높이도 크게 */
         #info { 
             height: 140px; 
             width: 100%;
@@ -42,41 +40,40 @@
             position: relative;
         }
 
-        /* 수순 숫자: 전광판 수준으로 확대 */
-        #step-num, #total-num {
-            font-size: 7em; /* 매우 거대하게 */
+        /* 수순 숫자: 기존 7em에서 5em으로 약 30% 축소 */
+        #step-num {
+            font-size: 5em; 
             font-weight: 900;
             color: #ffeb3b; 
             line-height: 1;
             font-family: 'Arial Black', sans-serif;
         }
 
-        .divider { font-size: 3em; color: #444; margin: 0 10px; }
+        /* 전체수순(/)과 숫자는 화면에서 제거 (HTML 구조는 유지하되 숨김) */
+        .divider, #total-num { display: none; }
 
         #mode-text {
             position: absolute; top: 10px; left: 15px;
             font-size: 1.2em; color: #ff5252; font-weight: bold;
         }
 
-        /* [세로 모드] 버튼: 화면 절반씩 차지하도록 큼직하게 */
         .controls { 
             display: grid; grid-template-columns: repeat(2, 1fr); 
             gap: 12px; width: 100%;
         }
         
         button { 
-            height: 100px; /* 버튼 높이를 100px로 대폭 확대 */
+            height: 100px; 
             border: none; border-radius: 15px; 
             background: #333; color: white; 
-            font-size: 28px; /* 버튼 글자 크기도 확대 */
+            font-size: 28px; 
             font-weight: bold; 
             box-shadow: 0 4px 0 #111;
-            active: transform: translateY(2px);
         }
 
-        #reset-btn { background: #600 !important; } /* 복원 버튼은 더 진한 빨간색으로 */
+        #reset-btn { background: #600 !important; }
 
-        /* [가로 화면] 기존에 마음에 들어하신 레이아웃 유지 */
+        /* 가로 화면 설정 */
         @media (orientation: landscape) {
             #main-container { flex-direction: row; justify-content: center; padding: 0 20px; gap: 20px; }
             #game-box { width: 88vh; height: 88vh; }
@@ -84,7 +81,8 @@
             .controls { grid-template-columns: 1fr; width: 100%; }
             button { height: 75px; font-size: 22px; }
             #info { height: 160px; }
-            #step-num, #total-num { font-size: 6.5em; }
+            /* 가로모드 기존 6.5em에서 4.5em으로 약 30% 축소 */
+            #step-num { font-size: 4.5em; }
         }
     </style>
 </head>
@@ -117,7 +115,6 @@
     </div>
 
     <script>
-        // JavaScript 로직은 이전과 동일하게 유지됩니다.
         const pdfTable = [[211,221,231,241,251,261,271,281,291,101,191,181,171,161,151,141,131,121,111],[212,222,232,242,252,262,272,282,292,102,192,182,172,162,152,142,132,122,112],[213,223,233,243,253,263,273,283,293,103,193,183,173,163,153,143,133,123,113],[214,224,234,244,254,264,274,284,294,104,194,184,174,164,154,144,134,124,114],[215,225,235,245,255,265,275,285,295,105,195,185,175,165,155,145,135,125,115],[216,226,236,246,256,266,276,286,296,106,196,186,176,166,156,146,136,126,116],[217,227,237,247,257,267,277,287,297,107,197,187,177,167,157,147,137,127,117],[218,228,238,248,258,268,278,288,298,108,198,188,178,168,158,148,138,128,118],[219,229,239,249,259,269,279,289,299,109,199,189,179,169,159,149,139,129,119],[310,320,330,340,350,360,370,380,390,100,190,180,170,160,150,140,130,120,110],[319,329,339,349,359,369,379,389,399,309,499,489,479,469,459,449,439,429,419],[318,328,338,348,358,368,378,388,398,308,498,488,478,468,458,448,438,428,418],[317,327,337,347,357,367,377,387,397,307,497,487,477,467,457,447,437,427,417],[316,326,336,346,356,366,376,386,396,306,496,486,476,466,456,446,436,426,416],[315,325,335,345,355,365,375,385,395,305,495,485,475,465,455,445,435,425,415],[314,324,334,344,354,364,374,384,394,304,494,484,474,464,454,444,434,424,414],[313,323,333,343,353,363,373,383,393,303,493,483,473,463,453,443,433,423,413],[312,322,332,342,352,362,372,382,392,302,492,482,472,462,452,442,432,422,412],[311,321,331,341,351,361,371,381,391,301,491,481,471,461,451,441,431,421,411]];
         const numToPos = {}; pdfTable.forEach((row, r) => row.forEach((val, c) => numToPos[val] = {r, c}));
         let history = [[]], currentIdx = 0, isPlaying = true, interval, exploreBoard = null, lastExploreColor = 'W';
