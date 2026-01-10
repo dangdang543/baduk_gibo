@@ -31,9 +31,9 @@
         }
         
         #info { 
-            height: 120px; /* 숫자가 작아짐에 따라 높이 약간 조절 */
+            height: 120px; 
             width: 100%;
-            display: flex; flex-direction: column; /* 라벨과 숫자를 위아래로 배치 */
+            display: flex; flex-direction: column; 
             align-items: center; justify-content: center;
             background: #1a1a1a; 
             border: 2px solid #333;
@@ -41,7 +41,6 @@
             position: relative;
         }
 
-        /* "수순" 라벨 추가 */
         .info-label {
             font-size: 1.2em;
             color: #888;
@@ -49,7 +48,7 @@
             font-weight: bold;
         }
 
-        /* 수순 숫자: 이전 크기의 절반인 2.5em으로 설정 */
+        /* 수순 숫자: 2.5em */
         #step-num {
             font-size: 2.5em; 
             font-weight: 900;
@@ -79,7 +78,6 @@
 
         #reset-btn { background: #600 !important; }
 
-        /* 가로 화면 설정 */
         @media (orientation: landscape) {
             #main-container { flex-direction: row; justify-content: center; padding: 0 20px; gap: 20px; }
             #game-box { width: 88vh; height: 88vh; }
@@ -87,8 +85,7 @@
             .controls { grid-template-columns: 1fr; width: 100%; }
             button { height: 70px; font-size: 20px; }
             #info { height: 140px; }
-            /* 가로모드 숫자 크기 절반: 2.25em */
-            #step-num { font-size: 1.25em; }
+            #step-num { font-size: 2.25em; } /* 가로모드 가독성 조정 */
         }
     </style>
 </head>
@@ -109,7 +106,7 @@
                 <span id="mode-text"></span>
                 <span class="info-label">수순</span>
                 <span id="step-num">0</span>
-            </div>
+                </div>
             <div class="controls">
                 <button onclick="prev()">이전</button>
                 <button id="play-btn" onclick="togglePlay()">정지</button>
@@ -279,5 +276,3 @@
     </script>
 </body>
 </html>
-
-
