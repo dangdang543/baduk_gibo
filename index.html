@@ -4,18 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>바둑 복기 프로그램</title>
+    
     <link rel="stylesheet" type="text/css" href="https://yewang.github.io/besogo/besogo.css">
-    <script type="text/javascript" src="https://yewang.github.io/besogo/besogo.all.js"></script>
+    <script src="https://yewang.github.io/besogo/besogo.all.js"></script>
+
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #eee; }
-        #board-wrapper { width: 100%; max-width: 800px; height: 650px; background: white; padding: 10px; border-radius: 10px; }
-        .status-panel { margin-bottom: 10px; color: #333; }
+        #board-wrapper { width: 100%; max-width: 800px; height: 600px; background: white; padding: 10px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .status-panel { margin-bottom: 10px; text-align: center; }
+        #msg { color: #333; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="status-panel">
-        <h3 id="msg">기보를 불러오는 중...</h3>
+        <div id="msg">라이브러리 준비 중...</div>
     </div>
 
     <div id="board-wrapper">
@@ -23,37 +26,48 @@
     </div>
 
     <script>
-        window.onload = function() {
+        // Besogo가 로드될 때까지 기다렸다가 실행하는 함수
+        function startBesogo() {
             const urlParams = new URLSearchParams(window.location.search);
             const fileName = urlParams.get('file');
             const msgElement = document.getElementById('msg');
 
-            if (!fileName) {
-                msgElement.innerText = "파일 이름이 없습니다. 주소 뒤에 ?file=파일명.sgf를 붙여주세요.";
+            // 1. Besogo 라이브러리 로드 확인
+            if (typeof besogo === 'undefined') {
+                msgElement.innerText = "라이브러리를 불러오지 못했습니다. 잠시만 기다려주세요...";
+                setTimeout(startBesogo, 500); // 0.5초 후 재시도
                 return;
             }
 
-            // 파일을 fetch로 먼저 확인
+            if (!fileName) {
+                msgElement.innerText = "파일이 지정되지 않았습니다. (?file=파일명.sgf)";
+                return;
+            }
+
+            // 2. SGF 파일 가져오기
             fetch(fileName)
                 .then(response => {
-                    if (!response.ok) throw new Error('파일을 찾을 수 없습니다.');
+                    if (!response.ok) throw new Error('SGF 파일을 찾을 수 없습니다.');
                     return response.text();
                 })
                 .then(sgfData => {
                     msgElement.innerText = "복기 중: " + fileName;
-                    // 파일 읽기 성공 시 바둑판 생성
+                    // 바둑판 생성
                     besogo.create(document.getElementById('besogo-container'), {
-                        sgf: sgfData, // 파일 경로 대신 읽어온 텍스트 데이터 전달
+                        sgf: sgfData,
                         includeControls: true,
                         editor: true,
                         realBoard: true
                     });
                 })
                 .catch(error => {
-                    msgElement.innerText = "에러: " + error.message + " (" + fileName + ")";
+                    msgElement.innerText = "에러: " + error.message;
                     msgElement.style.color = "red";
                 });
-        };
+        }
+
+        // 페이지 로드 시 실행
+        window.onload = startBesogo;
     </script>
 </body>
 </html>
