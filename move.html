@@ -48,7 +48,6 @@
             font-weight: bold;
         }
 
-        /* 수순 숫자: 2.5em */
         #step-num {
             font-size: 2.5em; 
             font-weight: 900;
@@ -74,7 +73,10 @@
             font-size: 24px; 
             font-weight: bold; 
             box-shadow: 0 4px 0 #111;
+            cursor: pointer;
         }
+        
+        button:active { transform: translateY(2px); box-shadow: 0 2px 0 #111; }
 
         #reset-btn { background: #600 !important; }
 
@@ -85,7 +87,7 @@
             .controls { grid-template-columns: 1fr; width: 100%; }
             button { height: 70px; font-size: 20px; }
             #info { height: 140px; }
-            #step-num { font-size: 2.25em; } /* 가로모드 가독성 조정 */
+            #step-num { font-size: 2.25em; }
         }
     </style>
 </head>
@@ -108,9 +110,9 @@
                 <span id="step-num">0</span>
                 </div>
             <div class="controls">
-                <button onclick="prev()">이전</button>
+                <button onclick="prev()">이전 (←)</button>
                 <button id="play-btn" onclick="togglePlay()">정지</button>
-                <button onclick="next()">다음</button>
+                <button onclick="next()">다음 (→)</button>
                 <button id="reset-btn" onclick="resetToKibo()">기보 복원</button>
             </div>
         </div>
@@ -249,6 +251,15 @@
                     lastExploreColor = nextCol;
                     render();
                 }
+            }
+        });
+
+        // 키보드 이벤트 리스너 추가
+        document.addEventListener('keydown', function(e) {
+            if (e.key === "ArrowLeft") {
+                prev();
+            } else if (e.key === "ArrowRight") {
+                next();
             }
         });
 
