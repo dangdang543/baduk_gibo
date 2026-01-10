@@ -3,67 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SGF 복기 뷰어</title>
+    <title>바둑 기보 복기</title>
     
     <link rel="stylesheet" type="text/css" href="https://yewang.github.io/besogo/besogo.css">
     <script type="text/javascript" src="https://yewang.github.io/besogo/besogo.all.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #e9ecef; margin: 0; padding: 20px; }
-        #viewer-header { margin-bottom: 20px; text-align: center; }
-        #besogo-container {
+        body { font-family: sans-serif; background-color: #f4f4f4; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        #viewer-container {
             width: 100%;
-            max-width: 900px;
-            height: 650px;
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 800px;
+            height: 600px; /* 높이가 너무 작으면 안 보일 수 있음 */
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            padding: 10px;
         }
-        .error-msg { color: #d9534f; background: #f2dede; padding: 10px; border-radius: 5px; display: none; }
+        .info { margin-bottom: 15px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div id="viewer-header">
-        <h2 id="file-title">기보 로딩 중...</h2>
-        <div id="error-box" class="error-msg">파일을 찾을 수 없거나 파일명이 지정되지 않았습니다.</div>
+    <div class="info">
+        <h2 id="title">기보를 불러오는 중...</h2>
+        <p id="status">URL 파라미터 확인 중: ?file=파일명.sgf</p>
     </div>
 
-    <div id="besogo-container"></div>
+    <div id="viewer-container"></div>
 
     <script>
-        // 1. URL에서 파라미터 값을 가져오는 함수
-        function getQueryVariable(variable) {
-            const query = window.location.search.substring(1);
-            const vars = query.split("&");
-            for (let i = 0; i < vars.length; i++) {
-                const pair = vars[i].split("=");
-                if (pair[0] == variable) { return pair[1]; }
+        window.onload = function() {
+            // 1. URL에서 file 파라미터 추출
+            const urlParams = new URLSearchParams(window.location.search);
+            const fileName = urlParams.get('file');
+            const container = document.getElementById('viewer-container');
+            const statusText = document.getElementById('status');
+            const titleText = document.getElementById('title');
+
+            if (fileName) {
+                titleText.innerText = "복기 중: " + fileName;
+                statusText.innerText = "파일을 불러오고 있습니다...";
+
+                // 2. Besogo 바둑판 생성
+                // 클래스 부여 및 데이터 속성 설정 후 생성
+                besogo.create(container, {
+                    file: fileName,
+                    includeControls: true,
+                    editor: true,
+                    realBoard: true,
+                    callback: function(res) {
+                        statusText.innerText = "로딩 완료!";
+                    }
+                });
+            } else {
+                titleText.innerText = "파일 이름이 없습니다.";
+                statusText.innerText = "주소 뒤에 ?file=heaven.sgf 처럼 입력해주세요.";
             }
-            return (false);
-        }
-
-        // 2. 실행 로직
-        const fileName = getQueryVariable("file");
-        const container = document.getElementById('besogo-container');
-        const title = document.getElementById('file-title');
-
-        if (fileName) {
-            title.innerText = "복기 중: " + decodeURIComponent(fileName);
-            
-            // Besogo 동적 생성
-            besogo.create(container, {
-                file: fileName, // URL에서 받은 파일명 연결
-                includeControls: true,
-                editor: true,
-                realBoard: true
-            });
-        } else {
-            title.innerText = "파일이 지정되지 않았습니다.";
-            document.getElementById('error-box').style.display = 'block';
-            document.getElementById('error-box').innerText = "사용법: index.html?file=파일명.sgf";
-        }
+        };
     </script>
 </body>
 </html>
