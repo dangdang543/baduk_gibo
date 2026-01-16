@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>바둑 문제 바로가기</title>
+    <title>바둑 문제 목록 생성기</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 30px; background-color: #f4f7f6; }
         .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -11,18 +11,23 @@
         button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
         button:hover { background-color: #0056b3; }
         #linkList { margin-top: 20px; }
-        .problem-link { display: block; padding: 10px; margin-bottom: 5px; background: #e9ecef; color: #007bff; text-decoration: none; border-radius: 4px; text-align: center; }
-        .problem-link:hover { background: #dee2e6; }
-        .hint { font-size: 12px; color: #666; margin-top: 10px; }
+        
+        /* 목록 스타일 수정 */
+        .problem-item { display: flex; align-items: center; margin-bottom: 8px; }
+        .problem-index { width: 30px; font-weight: bold; color: #666; font-size: 14px; }
+        .problem-link { flex-grow: 1; padding: 10px; background: #f8f9fa; color: #007bff; text-decoration: none; border: 1px solid #dee2e6; border-radius: 4px; text-align: center; transition: 0.2s; }
+        .problem-link:hover { background: #e2e6ea; border-color: #adb5bd; }
+        
+        .hint { font-size: 13px; color: #666; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>101위기 문제 찾기</h2>
+    <h2>101위기 문제 목록 만들기</h2>
     <input type="text" id="nums" placeholder="번호 입력 (예: 330 385 392)">
-    <button onclick="processProblems()">문제 열기 / 목록 만들기</button>
-    <p class="hint">※ 한꺼번에 안 열리면 아래 생성된 링크를 클릭하세요.</p>
+    <button onclick="processProblems()">목록 생성하기</button>
+    <p class="hint">번호를 입력하면 순서대로 번호가 매겨진 링크가 생성됩니다.</p>
     
     <div id="linkList"></div>
 </div>
@@ -33,32 +38,38 @@
         const linkListDiv = document.getElementById('linkList');
         const baseUrl = "https://www.101weiqi.com/book/levelorder/469/";
         
-        // 입력값이 비어있는지 확인
         if (!inputVal.trim()) {
             alert("번호를 입력해 주세요.");
             return;
         }
 
-        // 공백이나 콤마로 번호 분리
         const numbers = inputVal.trim().split(/[\s,]+/);
-        linkListDiv.innerHTML = ""; // 이전 목록 초기화
+        linkListDiv.innerHTML = ""; 
 
         numbers.forEach((num, index) => {
             if (num) {
                 const fullUrl = baseUrl + num + "/";
                 
-                // 1. 자동으로 창 열기 시도 (0.5초 간격)
-                setTimeout(() => {
-                    window.open(fullUrl, '_blank');
-                }, index * 500);
+                // 항목을 감싸는 div 생성
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "problem-item";
 
-                // 2. 만약 안 열릴 경우를 대비해 아래에 클릭 가능한 링크 생성
+                // 1. 일련번호 생성 (index는 0부터 시작하므로 +1)
+                const indexSpan = document.createElement('span');
+                indexSpan.className = "problem-index";
+                indexSpan.innerText = (index + 1) + ".";
+
+                // 2. 링크 생성
                 const link = document.createElement('a');
                 link.href = fullUrl;
                 link.target = "_blank";
                 link.className = "problem-link";
-                link.innerText = "문제 " + num + "번 열기";
-                linkListDiv.appendChild(link);
+                link.innerText = "문제 " + num + "번 이동";
+
+                // 조립
+                itemDiv.appendChild(indexSpan);
+                itemDiv.appendChild(link);
+                linkListDiv.appendChild(itemDiv);
             }
         });
     }
