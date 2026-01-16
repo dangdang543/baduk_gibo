@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>바둑 문제 바로가기</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 30px; background-color: #f4f7f6; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { color: #333; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:hover { background-color: #0056b3; }
+        #linkList { margin-top: 20px; }
+        .problem-link { display: block; padding: 10px; margin-bottom: 5px; background: #e9ecef; color: #007bff; text-decoration: none; border-radius: 4px; text-align: center; }
+        .problem-link:hover { background: #dee2e6; }
+        .hint { font-size: 12px; color: #666; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>101위기 문제 찾기</h2>
+    <input type="text" id="nums" placeholder="번호 입력 (예: 330 385 392)">
+    <button onclick="processProblems()">문제 열기 / 목록 만들기</button>
+    <p class="hint">※ 한꺼번에 안 열리면 아래 생성된 링크를 클릭하세요.</p>
+    
+    <div id="linkList"></div>
+</div>
+
+<script>
+    function processProblems() {
+        const inputVal = document.getElementById('nums').value;
+        const linkListDiv = document.getElementById('linkList');
+        const baseUrl = "https://www.101weiqi.com/book/levelorder/469/";
+        
+        // 입력값이 비어있는지 확인
+        if (!inputVal.trim()) {
+            alert("번호를 입력해 주세요.");
+            return;
+        }
+
+        // 공백이나 콤마로 번호 분리
+        const numbers = inputVal.trim().split(/[\s,]+/);
+        linkListDiv.innerHTML = ""; // 이전 목록 초기화
+
+        numbers.forEach((num, index) => {
+            if (num) {
+                const fullUrl = baseUrl + num + "/";
+                
+                // 1. 자동으로 창 열기 시도 (0.5초 간격)
+                setTimeout(() => {
+                    window.open(fullUrl, '_blank');
+                }, index * 500);
+
+                // 2. 만약 안 열릴 경우를 대비해 아래에 클릭 가능한 링크 생성
+                const link = document.createElement('a');
+                link.href = fullUrl;
+                link.target = "_blank";
+                link.className = "problem-link";
+                link.innerText = "문제 " + num + "번 열기";
+                linkListDiv.appendChild(link);
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
