@@ -2,53 +2,53 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>101weiqi 오답노트 생성기</title>
+    <title>101weiqi 문제 리스트 생성기</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 30px; background-color: #f4f7f6; }
         .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h2 { color: #333; text-align: center; }
-        textarea { width: 100%; height: 100px; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px; resize: none; }
+        h2 { color: #333; text-align: center; margin-bottom: 20px; }
+        textarea { width: 100%; height: 120px; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 15px; resize: none; line-height: 1.5; }
         .btn-group { display: flex; gap: 5px; }
         button { flex: 1; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; }
-        .btn-main { background-color: #007bff; color: white; }
-        .btn-main:hover { background-color: #0056b3; }
-        .btn-copy { background-color: #6c757d; color: white; }
-        .btn-copy:hover { background-color: #5a6268; }
+        .btn-main { background-color: #2c3e50; color: white; }
+        .btn-main:hover { background-color: #1a252f; }
+        .btn-copy { background-color: #95a5a6; color: white; }
+        .btn-copy:hover { background-color: #7f8c8d; }
         
-        #linkList { margin-top: 20px; }
-        .problem-item { display: flex; align-items: center; margin-bottom: 8px; animation: fadeIn 0.3s ease; }
-        .problem-index { width: 35px; font-weight: bold; color: #666; font-size: 14px; }
-        .problem-link { flex-grow: 1; padding: 10px; background: #f8f9fa; color: #007bff; text-decoration: none; border: 1px solid #dee2e6; border-radius: 4px; text-align: center; transition: 0.3s; }
-        .problem-link:hover { background: #e2e6ea; border-color: #adb5bd; }
+        #linkList { margin-top: 25px; }
+        .problem-item { display: flex; align-items: center; margin-bottom: 10px; animation: fadeIn 0.3s ease; }
+        .problem-index { width: 35px; font-weight: bold; color: #888; font-size: 14px; }
+        .problem-link { flex-grow: 1; padding: 12px; background: #ffffff; color: #2980b9; text-decoration: none; border: 1px solid #dcdde1; border-radius: 6px; text-align: center; transition: all 0.2s ease; font-weight: 500; }
+        .problem-link:hover { background: #f1f2f6; border-color: #2980b9; transform: translateX(3px); }
 
         .problem-link.active {
-            background-color: #e9ecef;
-            color: #adb5bd;
-            border-color: #dee2e6;
+            background-color: #f8f9fa;
+            color: #bdc3c7;
+            border-color: #ecf0f1;
             text-decoration: line-through;
         }
         
-        .hint { font-size: 13px; color: #666; margin-top: 15px; text-align: center; line-height: 1.6; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .hint { font-size: 13px; color: #7f8c8d; margin-top: 20px; text-align: center; line-height: 1.6; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2> 101weiqi 오답노트 </h2>
-    <textarea id="nums" placeholder="문제 번호 입력 (예: 45788 32104 2293)"></textarea>
+    <textarea id="nums" placeholder="문제 번호들을 입력하세요&#10;(예: 45788 32104 2293)"></textarea>
     
     <div class="btn-group">
-        <button class="btn-main" onclick="generateAndGo()">무작위 목록 생성</button>
-        <button class="btn-copy" onclick="copyCurrentUrl()">URL 복사</button>
+        <button class="btn-main" onclick="generateAndGo()">무작위 섞기 & 생성</button>
+        <button class="btn-copy" onclick="copyCurrentUrl()">현재 목록 URL 복사</button>
     </div>
-    <p class="hint">문제 고유 번호를 공백이나 쉼표로 구분해 입력하세요.<br>생성된 버튼을 클릭하면 해당 문제 창이 열립니다.</p>
+    <p class="hint">번호를 입력하고 생성 버튼을 누르세요.<br>목록이 생성된 후 'URL 복사'를 하면 나중에 다시 볼 수 있습니다.</p>
     
     <div id="linkList"></div>
 </div>
 
 <script>
-    // 페이지 로드 시 URL 파라미터가 있으면 목록 자동 생성
+    // 로드 시 URL에 데이터가 있으면 복구
     window.onload = function() {
         const urlParams = new URLSearchParams(window.location.search);
         const numsParam = urlParams.get('nums');
@@ -58,7 +58,6 @@
         }
     };
 
-    // Fisher-Yates 셔플 알고리즘
     function shuffleArray(array) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -70,19 +69,19 @@
     function generateAndGo() {
         const inputVal = document.getElementById('nums').value.trim();
         if (!inputVal) {
-            alert("번호를 입력해 주세요.");
+            alert("입력된 번호가 없습니다.");
             return;
         }
 
-        // 입력값에서 숫자만 추출
+        // 숫자 외의 구분자(공배, 쉼표, 줄바꿈 등) 처리
         let numbersArray = inputVal.split(/[\s,]+/).filter(n => n.length > 0);
         
-        // 무작위 섞기
+        // 무작위 섞기 실행
         numbersArray = shuffleArray(numbersArray);
         
         const formattedNums = numbersArray.join(',');
         
-        // 주소창 URL 업데이트 (공유용)
+        // URL 업데이트 (공유/저장용)
         const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?nums=' + formattedNums;
         window.history.pushState({ path: newUrl }, '', newUrl);
 
@@ -91,8 +90,8 @@
 
     function processProblems(numbersString) {
         const linkListDiv = document.getElementById('linkList');
-        // ✅ 변경된 URL 구조: /book/q/번호/
-        const baseUrl = "https://www.101weiqi.com/book/q/";
+        // ✅ 수정한 부분: /book/ 제거
+        const baseUrl = "https://www.101weiqi.com/q/";
         const numbers = numbersString.split(',');
 
         linkListDiv.innerHTML = ""; 
@@ -111,9 +110,9 @@
                 link.href = fullUrl;
                 link.target = "_blank";
                 link.className = "problem-link";
-                link.innerText = "문제 " + num + "번 열기";
+                link.innerText = "문제 " + num + "번 바로가기";
 
-                // 클릭 시 '완료' 표시 (회색 처리 및 취소선)
+                // 클릭 시 상태 표시
                 link.onclick = function() {
                     this.classList.add('active');
                 };
@@ -127,11 +126,11 @@
 
     function copyCurrentUrl() {
         if (!window.location.search) {
-            alert("먼저 '무작위 목록 생성' 버튼을 눌러 URL을 생성해주세요.");
+            alert("먼저 목록을 생성해 주세요.");
             return;
         }
         navigator.clipboard.writeText(window.location.href).then(() => {
-            alert("공유 가능한 URL이 복사되었습니다!");
+            alert("현재 리스트 주소가 복사되었습니다. 브라우저 즐겨찾기에 등록하거나 메모장에 저장하세요!");
         });
     }
 </script>
